@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
+import { ThemeContext } from "../ThemeContext";
 
 interface Book {
   id: string;
@@ -12,6 +13,8 @@ interface Book {
 export default function LibraryScreen() {
   const [books, setBooks] = useState<Book[]>([]);
   const router = useRouter();
+  const { theme } = useContext(ThemeContext);
+  const isDarkTheme = theme === "dark";
 
   const pickDocument = async () => {
     try {
@@ -19,6 +22,8 @@ export default function LibraryScreen() {
         type: "application/epub+zip",
         copyToCacheDirectory: true,
       });
+
+      console.log("Результат вибору файлу:", result);
 
       if (result.canceled || !result.assets?.length) return;
 
@@ -34,39 +39,62 @@ export default function LibraryScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Моя бібліотека</Text>
-
+    <View style={[styles.container, isDarkTheme && styles.darkContainer]}>
+      <Text style={[styles.title, isDarkTheme && styles.darkTitle]}>
+        Моя бібліотека
+      </Text>
       <FlatList
         data={books}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
           <TouchableOpacity
-            style={styles.bookItem}
-            onPress={() => router.push(`/reader?bookUri=${encodeURIComponent(item.uri)}`)}
+            style={[styles.bookItem, isDarkTheme && styles.darkBookItem]}
+            onPress={() => {
+              router.push(`/reader?bookUri=${encodeURIComponent(item.uri)}`);
+            }}
           >
-            <Text style={styles.bookTitle}>{item.title}</Text>
+            <Text style={[styles.bookTitle, isDarkTheme && styles.darkBookTitle]}>
+              {item.title}
+            </Text>
           </TouchableOpacity>
         )}
       />
 
-      <TouchableOpacity style={styles.importButton} onPress={pickDocument}>
-        <Text style={styles.importButtonText}>+ Додати книгу</Text>
+      <TouchableOpacity
+        style={[styles.importButton, isDarkTheme && styles.darkImportButton]}
+        onPress={pickDocument}
+      >
+        <Text style={[styles.importButtonText, isDarkTheme && styles.darkImportButtonText]}>
+          + Додати книгу
+        </Text>
       </TouchableOpacity>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 20 },
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#fff",
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+    color: "#000",
+  },
   bookItem: {
     padding: 15,
     marginBottom: 10,
     backgroundColor: "#f0f0f0",
     borderRadius: 10,
   },
-  bookTitle: { fontSize: 18, fontWeight: "bold" },
+  bookTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#000",
+  },
   importButton: {
     marginTop: 20,
     backgroundColor: "#007bff",
@@ -74,5 +102,28 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: "center",
   },
-  importButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  importButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  darkContainer: {
+    backgroundColor: "#222",
+  },
+  darkTitle: {
+    color: "#fff",
+  },
+  darkBookItem: {
+    backgroundColor: "#333",
+  },
+  darkBookTitle: {
+    color: "#fff",
+  },
+  darkImportButton: {
+    backgroundColor: "#444",
+  },
+  darkImportButtonText: {
+    color: "#fff",
+  },
 });

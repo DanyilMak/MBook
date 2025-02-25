@@ -1,9 +1,28 @@
+import React, { useContext } from "react";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { ThemeContext } from "../ThemeContext";
+import { ColorSchemeName } from "react-native";
 
 export default function TabsLayout() {
+  const { theme } = useContext(ThemeContext);
+  const isDarkTheme = theme === "dark";
+
+  const backgroundColor = isDarkTheme ? "#222" : "#fff";
+  const activeTintColor = isDarkTheme ? "#fff" : "#000";
+  const inactiveTintColor = isDarkTheme ? "#888" : "#aaa";
+
   return (
-    <Tabs>
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarStyle: {
+          backgroundColor: backgroundColor,
+        },
+        tabBarActiveTintColor: activeTintColor,
+        tabBarInactiveTintColor: inactiveTintColor,
+      }}
+    >
       <Tabs.Screen
         name="library"
         options={{
