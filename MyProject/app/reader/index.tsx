@@ -8,7 +8,8 @@ import {
   TouchableOpacity,
   NativeSyntheticEvent,
   NativeScrollEvent,
-  Modal
+  Modal,
+  TextInput
 } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import * as FileSystem from "expo-file-system";
@@ -25,13 +26,14 @@ export default function ReaderScreen() {
   const { theme } = useContext(ThemeContext);
   const isDarkTheme = theme === "dark";
 
-  // Налаштування тексту
   const [fontSize, setFontSize] = useState(16);
   const [fontColor, setFontColor] = useState("#000");
   const [bgColor, setBgColor] = useState("#fff");
 
-  // Модальне вікно
   const [settingsVisible, setSettingsVisible] = useState(false);
+  const [notesVisible, setNotesVisible] = useState(false);
+  const [newNote, setNewNote] = useState("");
+  const [notes, setNotes] = useState<string[]>([]);
 
   useEffect(() => {
     const loadBook = async () => {
@@ -44,10 +46,14 @@ export default function ReaderScreen() {
 
         setBookContent(content);
 
-        // Завантажуємо останню позицію
         const savedPosition = await AsyncStorage.getItem(`position-${bookUri}`);
         if (savedPosition) {
           setScrollPosition(parseInt(savedPosition, 10));
+        }
+
+        const savedNotes = await AsyncStorage.getItem(`notes-${bookUri}`);
+        if (savedNotes) {
+          setNotes(JSON.parse(savedNotes));
         }
       } catch (error) {
         console.error("❌ Помилка при завантаженні файлу:", error);
@@ -59,22 +65,18 @@ export default function ReaderScreen() {
     loadBook();
   }, [bookUri]);
 
-  // Збереження позиції прокрутки
   const handleScroll = async (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = event.nativeEvent.contentOffset.y;
     setScrollPosition(offsetY);
     await AsyncStorage.setItem(`position-${bookUri}`, offsetY.toString());
   };
 
-  // Додавання закладки
-  const saveBookmark = async () => {
-    try {
-      const bookmarks = JSON.parse(await AsyncStorage.getItem(`bookmarks-${bookUri}`) || "[]");
-      bookmarks.push(scrollPosition);
-      await AsyncStorage.setItem(`bookmarks-${bookUri}`, JSON.stringify(bookmarks));
-      alert("Закладка збережена!");
-    } catch (error) {
-      console.error("❌ Помилка збереження закладки:", error);
+  const saveNote = async () => {
+    if (newNote.trim()) {
+      const updatedNotes = [...notes, newNote];
+      setNotes(updatedNotes);
+      setNewNote("");
+      await AsyncStorage.setItem(`notes-${bookUri}`, JSON.stringify(updatedNotes));
     }
   };
 
@@ -87,28 +89,23 @@ export default function ReaderScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: bgColor }]}>
-
-      {/* Панель управління */}
+    <View style={[styles.container, { backgroundColor: bgColor }]}> 
       <View style={styles.toolbar}>
         <TouchableOpacity onPress={() => setSettingsVisible(true)}>
           <Text style={[styles.button, { color: fontColor }]}>⚙️ Налаштування</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={saveBookmark}>
-          <Text style={[styles.button, { color: fontColor }]}>🔖 Закладка</Text>
+        <TouchableOpacity onPress={() => setNotesVisible(true)}>
+          <Text style={[styles.button, { color: fontColor }]}>📝 Нотатки ({notes.length})</Text>
         </TouchableOpacity>
       </View>
 
-      {/* Контент книги */}
       <ScrollView
         style={styles.content}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         contentOffset={{ x: 0, y: scrollPosition }}
       >
-        <Text style={[styles.text, { fontSize, color: fontColor }]} selectable={true}>
-  {bookContent}
-</Text>
+        <Text style={[styles.text, { fontSize, color: fontColor }]} selectable={true}>{bookContent}</Text>
       </ScrollView>
 
       {/* Модальне вікно з налаштуваннями */}
@@ -163,21 +160,45 @@ export default function ReaderScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal visible={notesVisible} transparent={true} animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Нотатки</Text>
+            {notes.map((note, index) => (
+              <Text key={index} style={styles.noteItem}>{note}</Text>
+            ))}
+            <TextInput
+              style={styles.input}
+              value={newNote}
+              onChangeText={setNewNote}
+              placeholder="Додати нотатку"
+            />
+            <TouchableOpacity onPress={saveNote}>
+              <Text style={styles.modalButton}>Зберегти</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setNotesVisible(false)}>
+              <Text style={styles.modalClose}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  fileName: { fontSize: 18, fontWeight: "bold", textAlign: "center", padding: 10 },
   toolbar: { flexDirection: "row", justifyContent: "space-between", padding: 10 },
   button: { fontSize: 18, paddingHorizontal: 10 },
-  content: { flex: 1, padding: 15 }, // Додано стиль для ScrollView
-  text: { lineHeight: 24 }, // Додано стиль для тексту книги
+  content: { flex: 1, padding: 15 },
+  text: { lineHeight: 24 },
   modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(0,0,0,0.5)" },
   modalContent: { width: "80%", backgroundColor: "#fff", padding: 20, borderRadius: 10 },
   modalTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 10 },
   modalButtons: { flexDirection: "row", justifyContent: "space-between", marginVertical: 10 },
   modalButton: { fontSize: 16, padding: 10, borderRadius: 5, backgroundColor: "#ddd" },
   modalClose: { textAlign: "center", marginTop: 10, color: "red" },
+  input: { borderWidth: 1, padding: 10, marginVertical: 10, width: "100%" },
+  noteItem: { padding: 5, borderBottomWidth: 1 },
 });
