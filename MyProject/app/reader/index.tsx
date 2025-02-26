@@ -11,7 +11,7 @@ import {
   Modal,
   TextInput
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, useFocusEffect } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import iconv from "iconv-lite";
@@ -25,6 +25,7 @@ export default function ReaderScreen() {
   const [scrollPosition, setScrollPosition] = useState(0);
   const { theme } = useContext(ThemeContext);
   const isDarkTheme = theme === "dark";
+  const [readingTime, setReadingTime] = useState(0);
 
   const [fontSize, setFontSize] = useState(16);
   const [fontColor, setFontColor] = useState("#000");
@@ -64,6 +65,28 @@ export default function ReaderScreen() {
 
     loadBook();
   }, [bookUri]);
+
+  useEffect(() => {
+    const loadReadingTime = async () => {
+      const savedReadingTime = await AsyncStorage.getItem("readingTime");
+      if (savedReadingTime) setReadingTime(parseInt(savedReadingTime, 10));
+    };
+    loadReadingTime();
+  }, []);
+  
+  useFocusEffect(
+    React.useCallback(() => {
+      let readingTimer = setInterval(() => {
+        setReadingTime(prev => prev + 1);
+      }, 1000);
+  
+      return () => {
+        clearInterval(readingTimer);
+        AsyncStorage.setItem("readingTime", readingTime.toString()).then(() => {
+        });
+      };
+    }, [readingTime])
+  );
 
   const handleScroll = async (event: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetY = event.nativeEvent.contentOffset.y;
