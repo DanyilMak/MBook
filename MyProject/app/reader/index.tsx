@@ -11,7 +11,7 @@ import {
   Modal,
   TextInput
 } from "react-native";
-import { useLocalSearchParams, useFocusEffect } from "expo-router";
+import { useLocalSearchParams, useFocusEffect, useNavigation } from "expo-router";
 import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import iconv from "iconv-lite";
@@ -26,6 +26,7 @@ export default function ReaderScreen() {
   const { theme } = useContext(ThemeContext);
   const isDarkTheme = theme === "dark";
   const [readingTime, setReadingTime] = useState(0);
+  const navigation = useNavigation();
 
   const [fontSize, setFontSize] = useState(16);
   const [fontColor, setFontColor] = useState("#000");
@@ -36,6 +37,11 @@ export default function ReaderScreen() {
   const [newNote, setNewNote] = useState("");
   const [notes, setNotes] = useState<string[]>([]);
 
+  useEffect(() => {
+    navigation.setOptions({ title: "Читання книги" });
+  }, [navigation]);
+  
+  
   useEffect(() => {
     const loadBook = async () => {
       try {
