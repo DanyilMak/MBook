@@ -67,6 +67,21 @@ export default function ReaderScreen() {
   }, [bookUri]);
 
   useEffect(() => {
+    const loadProgress = async () => {
+      if (!bookUri || Array.isArray(bookUri)) return;
+  
+      const savedProgress = await AsyncStorage.getItem("progress");
+      if (savedProgress) {
+        const progressData = JSON.parse(savedProgress);
+        console.log("📥 Завантажений прогрес:", progressData[bookUri] || 0);
+      }
+    };
+  
+    loadProgress();
+  }, [bookUri]);
+  
+
+  useEffect(() => {
     const loadReadingTime = async () => {
       const savedReadingTime = await AsyncStorage.getItem("readingTime");
       if (savedReadingTime) setReadingTime(parseInt(savedReadingTime, 10));
@@ -84,16 +99,35 @@ export default function ReaderScreen() {
         clearInterval(readingTimer);
         AsyncStorage.setItem("readingTime", readingTime.toString()).then(() => {
         });
+        handleCloseBook();
       };
     }, [readingTime])
   );
 
   const handleScroll = async (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    setScrollPosition(offsetY);
+    const { contentOffset, layoutMeasurement, contentSize } = event.nativeEvent;
+    const offsetY = contentOffset.y;
+    const visibleHeight = layoutMeasurement.height;
+    const contentHeight = contentSize.height;
+  
+    const progress = (offsetY / (contentHeight - visibleHeight)) * 100;
+  
     await AsyncStorage.setItem(`position-${bookUri}`, offsetY.toString());
+  
+    if (typeof bookUri !== "string") return;
+  
+    const savedProgress = await AsyncStorage.getItem("progress");
+    const progressData: { [key: string]: number } = savedProgress ? JSON.parse(savedProgress) : {};
+  
+    progressData[bookUri] = progress;
+    await AsyncStorage.setItem("progress", JSON.stringify(progressData));
   };
 
+  const handleCloseBook = async () => {
+    const currentDate = new Date().toLocaleString();
+    await AsyncStorage.setItem("lastSession", currentDate);
+  };
+  
   const saveNote = async () => {
     if (newNote.trim()) {
       const updatedNotes = [...notes, newNote];
@@ -131,13 +165,11 @@ export default function ReaderScreen() {
         <Text style={[styles.text, { fontSize, color: fontColor }]} selectable={true}>{bookContent}</Text>
       </ScrollView>
 
-      {/* Модальне вікно з налаштуваннями */}
       <Modal visible={settingsVisible} transparent={true} animationType="slide">
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Налаштування</Text>
 
-            {/* Зміна розміру шрифту */}
             <Text>Розмір шрифту:</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setFontSize((prev) => Math.max(prev - 2, 12))}>
@@ -148,7 +180,6 @@ export default function ReaderScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Зміна кольору тексту */}
             <Text>Колір тексту:</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setFontColor("#000")}>
@@ -162,7 +193,6 @@ export default function ReaderScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Зміна фону */}
             <Text>Колір фону:</Text>
             <View style={styles.modalButtons}>
               <TouchableOpacity onPress={() => setBgColor("#fff")}>
@@ -176,7 +206,6 @@ export default function ReaderScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Закриття модального вікна */}
             <TouchableOpacity onPress={() => setSettingsVisible(false)}>
               <Text style={styles.modalClose}>Закрити</Text>
             </TouchableOpacity>
