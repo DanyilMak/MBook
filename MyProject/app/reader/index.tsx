@@ -17,6 +17,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import iconv from "iconv-lite";
 import { Buffer } from "buffer";
 import { ThemeContext } from "../ThemeContext";
+import { format } from "date-fns";
 
 export default function ReaderScreen() {
   const { bookUri } = useLocalSearchParams();
@@ -27,6 +28,7 @@ export default function ReaderScreen() {
   const isDarkTheme = theme === "dark";
   const [readingTime, setReadingTime] = useState(0);
   const navigation = useNavigation();
+  const [readBooks, setReadBooks] = useState<string[]>([]);
 
   const [fontSize, setFontSize] = useState(16);
   const [fontColor, setFontColor] = useState("#000");
@@ -91,23 +93,36 @@ export default function ReaderScreen() {
     const loadReadingTime = async () => {
       const savedReadingTime = await AsyncStorage.getItem("readingTime");
       if (savedReadingTime) setReadingTime(parseInt(savedReadingTime, 10));
+  
+      const today = format(new Date(), "yyyy-MM-dd");
+      const storedTime = await AsyncStorage.getItem(`readingTime_${today}`);
+      const storedBooks = await AsyncStorage.getItem(`readBooks_${today}`);
+  
+      if (storedTime) setReadingTime(parseInt(storedTime, 10));
+      if (storedBooks) setReadBooks(JSON.parse(storedBooks));
     };
     loadReadingTime();
   }, []);
   
   useFocusEffect(
     React.useCallback(() => {
+      const today = format(new Date(), "yyyy-MM-dd");
+  
       let readingTimer = setInterval(() => {
         setReadingTime(prev => prev + 1);
       }, 1000);
   
       return () => {
         clearInterval(readingTimer);
-        AsyncStorage.setItem("readingTime", readingTime.toString()).then(() => {
-        });
+  
+        AsyncStorage.setItem("readingTime", readingTime.toString());
+  
+        AsyncStorage.setItem(`readingTime_${today}`, readingTime.toString());
+        AsyncStorage.setItem(`readBooks_${today}`, JSON.stringify(readBooks));
+  
         handleCloseBook();
       };
-    }, [readingTime])
+    }, [readingTime, readBooks])
   );
 
   const handleScroll = async (event: NativeSyntheticEvent<NativeScrollEvent>) => {
