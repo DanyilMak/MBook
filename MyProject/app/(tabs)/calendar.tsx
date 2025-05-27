@@ -1,13 +1,25 @@
 import React, { useState, useEffect, useContext } from "react";
-import { View, Text, StyleSheet, Modal, TouchableOpacity } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Modal,
+  TouchableOpacity,
+  ScrollView,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import {
+  format,
+  startOfMonth,
+  endOfMonth,
+  eachDayOfInterval,
+} from "date-fns";
 import { uk } from "date-fns/locale";
 import { ThemeContext } from "../ThemeContext";
 
 export default function CalendarScreen() {
   const { theme } = useContext(ThemeContext);
-  const isDarkTheme = theme === "dark";
+  const isDark = theme === "dark";
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [readingTime, setReadingTime] = useState(0);
@@ -18,6 +30,7 @@ export default function CalendarScreen() {
   const monthName =
     format(today, "LLLL yyyy", { locale: uk }).charAt(0).toUpperCase() +
     format(today, "LLLL yyyy", { locale: uk }).slice(1);
+
   const daysInMonth = eachDayOfInterval({
     start: startOfMonth(today),
     end: endOfMonth(today),
@@ -26,75 +39,105 @@ export default function CalendarScreen() {
   useEffect(() => {
     const loadTodayBooks = async () => {
       const formattedDate = format(today, "yyyy-MM-dd");
-      const storedBooks = await AsyncStorage.getItem(`readBooks_${formattedDate}`);
+      const storedBooks = await AsyncStorage.getItem(
+        `readBooks_${formattedDate}`
+      );
       setReadBooksCount(storedBooks ? JSON.parse(storedBooks).length : 0);
     };
 
     loadTodayBooks();
-
   }, []);
 
   const openModal = async (date: Date) => {
     const formattedDate = format(date, "yyyy-MM-dd");
     setSelectedDate(formattedDate);
-  
-    const storedTime = await AsyncStorage.getItem(`readingTime_${formattedDate}`);
-    const storedBooks = await AsyncStorage.getItem(`readBooks_${formattedDate}`);
-  
+
+    const storedTime = await AsyncStorage.getItem(
+      `readingTime_${formattedDate}`
+    );
+    const storedBooks = await AsyncStorage.getItem(
+      `readBooks_${formattedDate}`
+    );
+
     setReadingTime(storedTime ? parseInt(storedTime, 10) : 0);
     setReadBooksCount(storedBooks ? JSON.parse(storedBooks).length : 0);
-  
+
     setModalVisible(true);
   };
-  
+
+  const formatTime = (seconds: number) => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hrs} год ${mins} хв ${secs} сек`;
+  };
+
   return (
-    <View style={[styles.container, isDarkTheme && styles.darkContainer]}>
-      <Text style={[styles.header, isDarkTheme && styles.darkText]}>{monthName}</Text>
+    <ScrollView
+      style={[styles.container, isDark && styles.darkContainer]}
+      contentContainerStyle={styles.scrollContent}
+    >
+      <Text style={[styles.header, isDark && styles.darkText]}>{monthName}</Text>
+
       <View style={styles.calendar}>
         {daysInMonth.map((day) => (
-          <TouchableOpacity key={day.toISOString()} onPress={() => openModal(day)} style={styles.day}>
-            <Text style={[styles.dayText, isDarkTheme && styles.darkText]}>{format(day, "d")}</Text>
+          <TouchableOpacity
+            key={day.toISOString()}
+            onPress={() => openModal(day)}
+            style={[styles.day, isDark && styles.darkDay]}
+          >
+            <Text style={[styles.dayText, isDark && styles.darkText]}>
+              {format(day, "d")}
+            </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Modal visible={modalVisible} transparent={true} animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalContainer}>
-          <View style={[styles.modalContent, isDarkTheme && styles.darkModal]}>
-            <Text style={[styles.modalHeader, isDarkTheme && styles.darkText]}>📆 {selectedDate}</Text>
-            <Text style={[styles.modalText, isDarkTheme && styles.darkText]}>
-              ⏳ Час читання: {readingTime} сек
+          <View style={[styles.modalCard, isDark && styles.darkCard]}>
+            <Text style={[styles.modalHeader, isDark && styles.darkText]}>
+              📅 {selectedDate}
             </Text>
-            <Text style={[styles.modalText, isDarkTheme && styles.darkText]}>
-              📚 Кількість прочитаних книг: {readBooksCount}
+            <Text style={[styles.modalItem, isDark && styles.darkText]}>
+              ⏳ Час читання: {formatTime(readingTime)}
             </Text>
-            <TouchableOpacity onPress={() => setModalVisible(false)} style={styles.closeButton}>
+            <Text style={[styles.modalItem, isDark && styles.darkText]}>
+              📚 Прочитано книг: {readBooksCount}
+            </Text>
+            <TouchableOpacity
+              onPress={() => setModalVisible(false)}
+              style={styles.closeButton}
+            >
               <Text style={styles.closeButtonText}>Закрити</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#fff",
+    backgroundColor: "#f2f2f2",
   },
   darkContainer: {
-    backgroundColor: "#222",
+    backgroundColor: "#121212",
+  },
+  scrollContent: {
+    padding: 20,
   },
   header: {
-    fontSize: 24,
-    fontWeight: "bold",
+    fontSize: 28,
+    fontWeight: "700",
+    textAlign: "center",
     marginBottom: 20,
+    color: "#333",
   },
   darkText: {
-    color: "#fff",
+    color: "#eee",
   },
   calendar: {
     flexDirection: "row",
@@ -102,50 +145,65 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   day: {
-    width: 40,
-    height: 40,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: "#e6e6e6",
     justifyContent: "center",
     alignItems: "center",
-    margin: 5,
-    borderRadius: 20,
-    backgroundColor: "#eee",
+    margin: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  darkDay: {
+    backgroundColor: "#333",
   },
   dayText: {
     fontSize: 16,
+    fontWeight: "500",
   },
   modalContainer: {
     flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  modalContent: {
-    width: "80%",
+  modalCard: {
     backgroundColor: "#fff",
+    borderRadius: 16,
     padding: 20,
-    borderRadius: 10,
+    width: "80%",
     alignItems: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  darkModal: {
-    backgroundColor: "#444",
+  darkCard: {
+    backgroundColor: "#1e1e1e",
   },
   modalHeader: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
     marginBottom: 10,
   },
-  modalText: {
+  modalItem: {
     fontSize: 16,
-    marginBottom: 5,
+    marginVertical: 4,
   },
   closeButton: {
-    marginTop: 10,
-    padding: 10,
+    marginTop: 15,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
     backgroundColor: "#ff5757",
-    borderRadius: 5,
+    borderRadius: 8,
   },
   closeButtonText: {
     color: "#fff",
-    fontWeight: "bold",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });

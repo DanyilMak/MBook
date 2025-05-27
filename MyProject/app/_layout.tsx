@@ -1,15 +1,17 @@
 import React, { useContext } from "react";
 import { Stack } from "expo-router";
 import { ThemeProvider, ThemeContext } from "./ThemeContext";
-import { View, StyleSheet, ImageBackground } from "react-native";
+import { View, ImageBackground, StyleSheet } from "react-native";
 
 export default function Layout() {
   return (
     <ThemeProvider>
       <ThemeContext.Consumer>
         {({ theme, backgroundImage }) => {
-          const content = (
-            <View style={styles.overlay}>
+          const isDark = theme === "dark";
+
+          const Content = (
+            <View style={[styles.overlay, isDark && styles.darkOverlay]}>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
                 <Stack.Screen name="reader" options={{ title: "Читання книги" }} />
@@ -21,17 +23,17 @@ export default function Layout() {
             return (
               <ImageBackground
                 source={{ uri: backgroundImage }}
-                style={styles.container}
+                style={styles.background}
                 resizeMode="cover"
               >
-                {content}
+                {Content}
               </ImageBackground>
             );
           }
 
           return (
-            <View style={[styles.container, theme === "dark" && styles.darkContainer]}>
-              {content}
+            <View style={[styles.background, isDark && styles.darkOverlay]}>
+              {Content}
             </View>
           );
         }}
@@ -41,14 +43,14 @@ export default function Layout() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-  },
-  darkContainer: {
-    backgroundColor: "#222",
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.2)",
+    backgroundColor: "rgba(255, 255, 255, 0.95)", // прозорість поверх зображення
+  },
+  darkOverlay: {
+    backgroundColor: "rgba(0, 0, 0, 0.85)",
   },
 });

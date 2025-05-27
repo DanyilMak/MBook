@@ -1,5 +1,14 @@
 import React, { useContext } from "react";
-import { View, Text, Switch, StyleSheet, TouchableOpacity, Alert, Image, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  Switch,
+  StyleSheet,
+  TouchableOpacity,
+  Alert,
+  Image,
+  ScrollView,
+} from "react-native";
 import { ThemeContext } from "../ThemeContext";
 
 const backgroundOptions = [
@@ -10,53 +19,62 @@ const backgroundOptions = [
 ];
 
 export default function SettingsScreen() {
-  const { theme, toggleTheme, backgroundImage, setBackgroundImage } = useContext(ThemeContext);
-  const isDarkTheme = theme === "dark";
-  const hasBackgroundImage = !!backgroundImage;
+  const { theme, toggleTheme, backgroundImage, setBackgroundImage } =
+    useContext(ThemeContext);
+
+  const isDark = theme === "dark";
+  const hasBackground = !!backgroundImage;
 
   const handleAboutPress = () => {
     Alert.alert(
       "Про додаток",
-      "Версія: 1.0.2\nАвтор: Максимчук Даниїл Сергійович\nЦей додаток створено як завдання до курсової роботи."
+      "Версія: 1.0.2\nАвтор: Максимчук Даниїл Сергійович\nЦей застосунок створено як завдання до виробничої практики, та модифіковано у рамках курсової роботи."
     );
   };
 
   return (
     <ScrollView
-      contentContainerStyle={[
-        styles.container,
-        !hasBackgroundImage && (isDarkTheme ? styles.darkContainer : styles.lightContainer),
-      ]}
+      style={[styles.container, isDark && styles.darkContainer]}
+      contentContainerStyle={{ padding: 20 }}
     >
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isDarkTheme && styles.darkText]}>Тема</Text>
+      <View style={[styles.card, isDark && styles.darkCard]}>
+        <Text style={[styles.title, isDark && styles.darkText]}>🎨 Тема</Text>
         <View style={styles.row}>
-          <Text style={[styles.label, isDarkTheme && styles.darkText]}>Світла / Темна</Text>
-          <Switch value={isDarkTheme} onValueChange={toggleTheme} />
+          <Text style={[styles.label, isDark && styles.darkText]}>
+            Світла / Темна
+          </Text>
+          <Switch value={isDark} onValueChange={toggleTheme} />
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isDarkTheme && styles.darkText]}>Фон зображення</Text>
+      <View style={[styles.card, isDark && styles.darkCard]}>
+        <Text style={[styles.title, isDark && styles.darkText]}>
+          🖼️ Фон зображення
+        </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {backgroundOptions.map((uri, index) => (
-            <TouchableOpacity key={index} onPress={() => setBackgroundImage(uri)}>
+          {backgroundOptions.map((uri, i) => (
+            <TouchableOpacity key={i} onPress={() => setBackgroundImage(uri)}>
               <Image source={{ uri }} style={styles.imageOption} />
             </TouchableOpacity>
           ))}
         </ScrollView>
-        {hasBackgroundImage && (
+        {hasBackground && (
           <TouchableOpacity onPress={() => setBackgroundImage(null)}>
-            <Text style={[styles.resetText, isDarkTheme && styles.darkText]}>
-              Скинути фон
+            <Text style={[styles.resetText, isDark && styles.darkText]}>
+              ❌ Скинути фон
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
-      <TouchableOpacity style={styles.section} onPress={handleAboutPress}>
-        <Text style={[styles.sectionTitle, isDarkTheme && styles.darkText]}>Про додаток</Text>
-        <Text style={[styles.aboutText, isDarkTheme && styles.darkText]}>
+      <TouchableOpacity
+        onPress={handleAboutPress}
+        style={[styles.card, isDark && styles.darkCard]}
+      >
+        <Text style={[styles.title, isDark && styles.darkText]}>
+          ℹ️ Про додаток
+        </Text>
+        <Text style={[styles.aboutText, isDark && styles.darkText]}>
           Натисніть, щоб дізнатись більше
         </Text>
       </TouchableOpacity>
@@ -67,27 +85,37 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
-  },
-  lightContainer: {
-    backgroundColor: "#fff",
+    backgroundColor: "#f2f2f2",
   },
   darkContainer: {
-    backgroundColor: "#333",
+    backgroundColor: "#121212",
   },
-  section: {
-    marginBottom: 30,
+  card: {
+    backgroundColor: "#fff",
+    padding: 18,
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  sectionTitle: {
+  darkCard: {
+    backgroundColor: "#1e1e1e",
+  },
+  title: {
     fontSize: 20,
-    fontWeight: "bold",
+    fontWeight: "700",
     marginBottom: 10,
     color: "#000",
   },
+  darkText: {
+    color: "#eee",
+  },
   row: {
     flexDirection: "row",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   label: {
     fontSize: 16,
@@ -97,18 +125,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#007bff",
   },
-  darkText: {
-    color: "#fff",
-  },
   imageOption: {
     width: 80,
     height: 80,
-    borderRadius: 8,
-    marginRight: 10,
+    borderRadius: 10,
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: "#ccc",
   },
   resetText: {
-    marginTop: 10,
-    color: "red",
+    marginTop: 12,
+    fontSize: 14,
+    color: "#ff4d4d",
     textAlign: "center",
   },
 });
