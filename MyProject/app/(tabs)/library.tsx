@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  Modal,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
@@ -16,17 +17,20 @@ interface Book {
   id: string;
   title: string;
   uri: string;
+  type: "txt" | "pdf";
   progress?: number;
 }
 
 export default function LibraryScreen() {
   const [books, setBooks] = useState<Book[]>([]);
-  const router = useRouter();
+  const [filter, setFilter] = useState<"all" | "txt" | "pdf">("all");
+  const [sort, setSort] = useState<"none" | "progress">("none");
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [sortModalVisible, setSortModalVisible] = useState(false);
+  const [bookProgress, setBookProgress] = useState<{ [key: string]: number }>({});
   const { theme } = useContext(ThemeContext);
   const isDark = theme === "dark";
-  const [bookProgress, setBookProgress] = useState<{ [key: string]: number }>(
-    {}
-  );
+  const router = useRouter();
 
   useEffect(() => {
     const loadBooks = async () => {
@@ -36,13 +40,21 @@ export default function LibraryScreen() {
       const savedProgress = await AsyncStorage.getItem("progress");
       const progressData = savedProgress ? JSON.parse(savedProgress) : {};
 
-      const updatedBooks = booksArray.map((book) => ({
-        ...book,
-        progress: progressData[book.uri] || 0,
-      }));
+      const updatedBooks = booksArray.map((book) => {
+        let fixedType: "txt" | "pdf" = "txt";
+        if (book.type === "pdf" || book.title?.toLowerCase().endsWith(".pdf")) {
+          fixedType = "pdf";
+        }
+        return {
+          ...book,
+          type: fixedType,
+          progress: progressData[book.uri] || 0,
+        };
+      });
 
       setBooks(updatedBooks);
       setBookProgress(progressData);
+      await AsyncStorage.setItem("books", JSON.stringify(updatedBooks));
     };
 
     loadBooks();
@@ -51,17 +63,24 @@ export default function LibraryScreen() {
   const pickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: "text/plain",
+        type: ["text/plain", "application/pdf"],
       });
 
       if (result.canceled || !result.assets?.length) return;
 
       const { uri, name } = result.assets[0];
+      const type: "pdf" | "txt" = name.toLowerCase().endsWith(".pdf") ? "pdf" : "txt";
 
       setBooks((prevBooks) => {
         const newBooks = [
           ...prevBooks,
-          { id: String(prevBooks.length + 1), title: name, uri, progress: 0 },
+          {
+            id: String(prevBooks.length + 1),
+            title: name,
+            uri,
+            type,
+            progress: 0,
+          },
         ];
         AsyncStorage.setItem("books", JSON.stringify(newBooks));
         return newBooks;
@@ -76,10 +95,10 @@ export default function LibraryScreen() {
     const progressData = savedProgress ? JSON.parse(savedProgress) : {};
     const currentProgress = progressData[uri] || 0;
 
-    setBookProgress((prevProgress) => {
-      const updatedProgress = { ...prevProgress, [uri]: currentProgress };
-      return updatedProgress;
-    });
+    setBookProgress((prevProgress) => ({
+      ...prevProgress,
+      [uri]: currentProgress,
+    }));
 
     setBooks((prevBooks) =>
       prevBooks.map((book) =>
@@ -88,20 +107,65 @@ export default function LibraryScreen() {
     );
   };
 
+  const deleteBook = (uri: string) => {
+    Alert.alert("Видалити книгу", "Ви впевнені, що хочете видалити цю книгу?", [
+      { text: "Скасувати", style: "cancel" },
+      {
+        text: "Видалити",
+        style: "destructive",
+        onPress: async () => {
+          const updatedBooks = books.filter((book) => book.uri !== uri);
+          setBooks(updatedBooks);
+          await AsyncStorage.setItem("books", JSON.stringify(updatedBooks));
+        },
+      },
+    ]);
+  };
+
+  let filteredBooks =
+    filter === "all" ? books : books.filter((book) => book.type === filter);
+
+  if (sort === "progress") {
+    filteredBooks = [...filteredBooks].sort(
+      (a, b) => (b.progress || 0) - (a.progress || 0)
+    );
+  }
+
   return (
     <View style={[styles.container, isDark && styles.darkContainer]}>
       <Text style={[styles.title, isDark && styles.darkText]}>
         📚 Моя бібліотека
       </Text>
+
+      <View style={{ flexDirection: "row", marginBottom: 10, gap: 5 }}>
+        <TouchableOpacity
+          onPress={() => setFilterModalVisible(true)}
+          style={[styles.filterButtonBox, isDark && styles.darkFilterButtonBox]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.filterButtonText}>🔍 Фільтр</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() => setSortModalVisible(true)}
+          style={[styles.filterButtonBox, isDark && styles.darkFilterButtonBox]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.filterButtonText}>⬇️ Сортування</Text>
+        </TouchableOpacity>
+      </View>
+
       <FlatList
-        data={books}
+        data={filteredBooks}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ paddingBottom: 20 }}
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.card, isDark && styles.darkCard]}
             onPress={() => {
-              router.push(`/reader?bookUri=${encodeURIComponent(item.uri)}`);
+              const route = item.type === "pdf" ? "/reader/pdf" : "/reader";
+              router.push(`${route}?bookUri=${encodeURIComponent(item.uri)}`);
+
               AsyncStorage.getItem("readBooks").then((data) => {
                 const readBooks = data ? JSON.parse(data) : [];
                 if (!readBooks.includes(item.uri)) {
@@ -125,6 +189,12 @@ export default function LibraryScreen() {
             >
               <Text style={styles.updateButtonText}>🔁 Оновити прогрес</Text>
             </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.updateButton, { backgroundColor: "#dc3545", marginTop: 6 }]}
+              onPress={() => deleteBook(item.uri)}
+            >
+              <Text style={styles.updateButtonText}>🗑️ Видалити книгу</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         )}
       />
@@ -135,6 +205,66 @@ export default function LibraryScreen() {
       >
         <Text style={styles.addButtonText}>+ Додати книгу</Text>
       </TouchableOpacity>
+
+      <Modal visible={filterModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
+            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Обрати фільтр</Text>
+            {["all", "txt", "pdf"].map((type) => (
+              <TouchableOpacity
+                key={type}
+                onPress={() => {
+                  setFilter(type as "all" | "txt" | "pdf");
+                  setFilterModalVisible(false);
+                }}
+                style={{ marginVertical: 8 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: filter === type ? "#007bff" : isDark ? "#eee" : "#000",
+                  }}
+                >
+                  {type === "all" ? "Усі книги" : `Тільки ${type.toUpperCase()}`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={{ marginTop: 16 }}>
+              <Text style={{ color: "#888" }}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={sortModalVisible} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
+            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Сортувати книги</Text>
+            {["none", "progress"].map((option) => (
+              <TouchableOpacity
+                key={option}
+                onPress={() => {
+                  setSort(option as "none" | "progress");
+                  setSortModalVisible(false);
+                }}
+                style={{ marginVertical: 8 }}
+              >
+                <Text
+                  style={{
+                    fontSize: 16,
+                    color: sort === option ? "#007bff" : isDark ? "#eee" : "#000",
+                  }}
+                >
+                  {option === "none" ? "Без сортування" : "За прогресом"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+            <TouchableOpacity onPress={() => setSortModalVisible(false)} style={{ marginTop: 16 }}>
+              <Text style={{ color: "#888" }}>Закрити</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -146,7 +276,7 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 24,
     fontWeight: "bold",
-    marginBottom: 16,
+    marginBottom: 8,
     color: "#000",
   },
   darkText: {
@@ -205,5 +335,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "600",
+  },
+
+  filterButtonBox: {
+    backgroundColor: "#007bff",
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  darkFilterButtonBox: {
+    backgroundColor: "#444",
+  },
+  filterButtonText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 14,
+  },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 16,
+    width: "80%",
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    marginBottom: 12,
   },
 });
