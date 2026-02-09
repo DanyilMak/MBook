@@ -8,7 +8,9 @@ import {
   Alert,
   Image,
   ScrollView,
+  ImageBackground,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { ThemeContext } from "../ThemeContext";
 
 const backgroundOptions = [
@@ -28,70 +30,102 @@ export default function SettingsScreen() {
   const handleAboutPress = () => {
     Alert.alert(
       "Про додаток",
-      "Версія: 1.0.3\nАвтор: Максимчук Даниїл Сергійович\nЦей застосунок створено як завдання до виробничої практики, та модифіковано у рамках курсової роботи."
+      "Версія: 1.0.5\nАвтор: Максимчук Даниїл Сергійович\nЦей застосунок створено як завдання до виробничої практики, та модифіковано у рамках курсової роботи."
     );
   };
 
+  const pickCustomImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("Доступ заборонено", "Додаток потребує доступу до галереї");
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setBackgroundImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      Alert.alert("Помилка", "Не вдалося вибрати зображення");
+    }
+  };
+
   return (
-    <ScrollView
-      style={[styles.container, isDark && styles.darkContainer]}
-      contentContainerStyle={{ padding: 20 }}
+    <ImageBackground
+      source={backgroundImage ? { uri: backgroundImage } : undefined}
+      style={{ flex: 1 }}
+      resizeMode="cover"
     >
-      <View style={[styles.card, isDark && styles.darkCard]}>
-        <Text style={[styles.title, isDark && styles.darkText]}>🎨 Тема</Text>
-        <View style={styles.row}>
-          <Text style={[styles.label, isDark && styles.darkText]}>
-            Світла / Темна
-          </Text>
-          <Switch value={isDark} onValueChange={toggleTheme} />
-        </View>
-      </View>
-
-      <View style={[styles.card, isDark && styles.darkCard]}>
-        <Text style={[styles.title, isDark && styles.darkText]}>
-          🖼️ Фон зображення
-        </Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          {backgroundOptions.map((uri, i) => (
-            <TouchableOpacity key={i} onPress={() => setBackgroundImage(uri)}>
-              <Image source={{ uri }} style={styles.imageOption} />
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-        {hasBackground && (
-          <TouchableOpacity onPress={() => setBackgroundImage(null)}>
-            <Text style={[styles.resetText, isDark && styles.darkText]}>
-              ❌ Скинути фон
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <TouchableOpacity
-        onPress={handleAboutPress}
-        style={[styles.card, isDark && styles.darkCard]}
+      <ScrollView
+        style={[styles.container, isDark && styles.darkContainer]}
+        contentContainerStyle={{ padding: 20 }}
       >
-        <Text style={[styles.title, isDark && styles.darkText]}>
-          ℹ️ Про додаток
-        </Text>
-        <Text style={[styles.aboutText, isDark && styles.darkText]}>
-          Натисніть, щоб дізнатись більше
-        </Text>
-      </TouchableOpacity>
-    </ScrollView>
+        <View style={[styles.card, isDark && styles.darkCard]}>
+          <Text style={[styles.title, isDark && styles.darkText]}>🎨 Тема</Text>
+          <View style={styles.row}>
+            <Text style={[styles.label, isDark && styles.darkText]}>
+              Світла / Темна
+            </Text>
+            <Switch value={isDark} onValueChange={toggleTheme} />
+          </View>
+        </View>
+
+        <View style={[styles.card, isDark && styles.darkCard]}>
+          <Text style={[styles.title, isDark && styles.darkText]}>
+            🖼️ Фон зображення
+          </Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+            {backgroundOptions.map((uri, i) => (
+              <TouchableOpacity key={i} onPress={() => setBackgroundImage(uri)}>
+                <Image source={{ uri }} style={styles.imageOption} />
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <TouchableOpacity style={styles.customButton} onPress={pickCustomImage}>
+            <Text style={styles.customButtonText}>📂 Обрати своє зображення</Text>
+          </TouchableOpacity>
+
+          {hasBackground && (
+            <TouchableOpacity onPress={() => setBackgroundImage(null)}>
+              <Text style={[styles.resetText, isDark && styles.darkText]}>
+                ❌ Скинути фон
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <TouchableOpacity
+          onPress={handleAboutPress}
+          style={[styles.card, isDark && styles.darkCard]}
+        >
+          <Text style={[styles.title, isDark && styles.darkText]}>
+            ℹ️ Про додаток
+          </Text>
+          <Text style={[styles.aboutText, isDark && styles.darkText]}>
+            Натисніть, щоб дізнатись більше
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "rgba(242,242,242,0.5)",
   },
   darkContainer: {
-    backgroundColor: "#121212",
+    backgroundColor: "rgba(18,18,18,0.5)",
   },
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,1)",
     padding: 18,
     borderRadius: 16,
     marginBottom: 20,
@@ -101,7 +135,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   darkCard: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "rgba(30,30,30,1)",
   },
   title: {
     fontSize: 20,
@@ -132,6 +166,18 @@ const styles = StyleSheet.create({
     marginRight: 12,
     borderWidth: 2,
     borderColor: "#ccc",
+  },
+  customButton: {
+    marginTop: 12,
+    backgroundColor: "#007bff",
+    paddingVertical: 10,
+    borderRadius: 12,
+    alignItems: "center",
+  },
+  customButtonText: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "600",
   },
   resetText: {
     marginTop: 12,

@@ -6,6 +6,7 @@ import {
   Modal,
   TouchableOpacity,
   ScrollView,
+  ImageBackground,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -18,7 +19,7 @@ import { uk } from "date-fns/locale";
 import { ThemeContext } from "../ThemeContext";
 
 export default function CalendarScreen() {
-  const { theme } = useContext(ThemeContext);
+  const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
 
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -73,58 +74,64 @@ export default function CalendarScreen() {
   };
 
   return (
-    <ScrollView
-      style={[styles.container, isDark && styles.darkContainer]}
-      contentContainerStyle={styles.scrollContent}
+    <ImageBackground
+      source={backgroundImage ? { uri: backgroundImage } : undefined}
+      style={{ flex: 1 }}
+      resizeMode="cover"
     >
-      <Text style={[styles.header, isDark && styles.darkText]}>{monthName}</Text>
+      <ScrollView
+        style={[styles.container, isDark && styles.darkContainer]}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={[styles.header, isDark && styles.darkText]}>{monthName}</Text>
 
-      <View style={styles.calendar}>
-        {daysInMonth.map((day) => (
-          <TouchableOpacity
-            key={day.toISOString()}
-            onPress={() => openModal(day)}
-            style={[styles.day, isDark && styles.darkDay]}
-          >
-            <Text style={[styles.dayText, isDark && styles.darkText]}>
-              {format(day, "d")}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <View style={[styles.modalCard, isDark && styles.darkCard]}>
-            <Text style={[styles.modalHeader, isDark && styles.darkText]}>
-              📅 {selectedDate}
-            </Text>
-            <Text style={[styles.modalItem, isDark && styles.darkText]}>
-              ⏳ Час читання: {formatTime(readingTime)}
-            </Text>
-            <Text style={[styles.modalItem, isDark && styles.darkText]}>
-              📚 Прочитано книг: {readBooksCount}
-            </Text>
+        <View style={styles.calendar}>
+          {daysInMonth.map((day) => (
             <TouchableOpacity
-              onPress={() => setModalVisible(false)}
-              style={styles.closeButton}
+              key={day.toISOString()}
+              onPress={() => openModal(day)}
+              style={[styles.day, isDark && styles.darkDay]}
             >
-              <Text style={styles.closeButtonText}>Закрити</Text>
+              <Text style={[styles.dayText, isDark && styles.darkText]}>
+                {format(day, "d")}
+              </Text>
             </TouchableOpacity>
-          </View>
+          ))}
         </View>
-      </Modal>
-    </ScrollView>
+
+        <Modal visible={modalVisible} transparent animationType="slide">
+          <View style={styles.modalContainer}>
+            <View style={[styles.modalCard, isDark && styles.darkCard]}>
+              <Text style={[styles.modalHeader, isDark && styles.darkText]}>
+                📅 {selectedDate}
+              </Text>
+              <Text style={[styles.modalItem, isDark && styles.darkText]}>
+                ⏳ Час читання: {formatTime(readingTime)}
+              </Text>
+              <Text style={[styles.modalItem, isDark && styles.darkText]}>
+                📚 Прочитано книг: {readBooksCount}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setModalVisible(false)}
+                style={styles.closeButton}
+              >
+                <Text style={styles.closeButtonText}>Закрити</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "rgba(242,242,242,0.5)",
   },
   darkContainer: {
-    backgroundColor: "#121212",
+    backgroundColor: "rgba(18,18,18,0.5)",
   },
   scrollContent: {
     padding: 20,
@@ -148,7 +155,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: "#e6e6e6",
+    backgroundColor: "rgba(230,230,230,1)",
     justifyContent: "center",
     alignItems: "center",
     margin: 6,
@@ -159,7 +166,7 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   darkDay: {
-    backgroundColor: "#333",
+    backgroundColor: "rgba(51,51,51,1)",
   },
   dayText: {
     fontSize: 16,
@@ -172,7 +179,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalCard: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 16,
     padding: 20,
     width: "80%",
@@ -183,7 +190,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   darkCard: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "rgba(30,30,30,0.9)",
   },
   modalHeader: {
     fontSize: 20,

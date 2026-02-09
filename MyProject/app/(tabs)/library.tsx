@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   Modal,
+  ImageBackground,
 } from "react-native";
 import * as DocumentPicker from "expo-document-picker";
 import { useRouter } from "expo-router";
@@ -29,7 +30,7 @@ export default function LibraryScreen() {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [bookProgress, setBookProgress] = useState<{ [key: string]: number }>({});
-  const { theme } = useContext(ThemeContext);
+  const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
   const router = useRouter();
 
@@ -151,181 +152,178 @@ export default function LibraryScreen() {
   }
 
   return (
-    <View style={[styles.container, isDark && styles.darkContainer]}>
-      <Text style={[styles.title, isDark && styles.darkText]}>
-        📚 Моя бібліотека
-      </Text>
+    <ImageBackground
+      source={backgroundImage ? { uri: backgroundImage } : undefined}
+      style={{ flex: 1 }}
+      resizeMode="cover"
+    >
+      <View style={[styles.container, isDark && styles.darkContainer]}>
+        <Text style={[styles.title, isDark && styles.darkText]}>
+          📚 Моя бібліотека
+        </Text>
 
-      <View style={{ flexDirection: "row", marginBottom: 10, gap: 5 }}>
-        <TouchableOpacity
-          onPress={() => setFilterModalVisible(true)}
-          style={[styles.filterButtonBox,
-          isDark && styles.darkFilterButtonBox,
-          filter !== "all" && { backgroundColor: "#3154e1" }]}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.filterButtonText}>🔍 Фільтр</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setSortModalVisible(true)}
-          style={[styles.filterButtonBox,
-          isDark && styles.darkFilterButtonBox,
-          sort !== "none" && { backgroundColor: "#3154e1" }]}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.filterButtonText}>⬇️ Сортування</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() =>
-            setFilter(prev => (prev === "favorites" ? "all" : "favorites"))
-          }
-          style={[
-            styles.filterButtonBox,
-            isDark && styles.darkFilterButtonBox,
-            filter === "favorites" && { backgroundColor: "#3154e1" }
-          ]}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.filterButtonText}>
-            ❤️ Улюблені
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <FlatList
-        data={filteredBooks}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={{ paddingBottom: 20 }}
-        renderItem={({ item }) => (
+        <View style={{ flexDirection: "row", marginBottom: 10, gap: 5 }}>
           <TouchableOpacity
-            style={[styles.card, isDark && styles.darkCard]}
-            onPress={() => {
-              const route = item.type === "pdf" ? "/reader/pdf" : "/reader";
-              router.push(`${route}?bookUri=${encodeURIComponent(item.uri)}`);
-
-              AsyncStorage.getItem("readBooks").then((data) => {
-                const readBooks = data ? JSON.parse(data) : [];
-                if (!readBooks.includes(item.uri)) {
-                  AsyncStorage.setItem(
-                    "readBooks",
-                    JSON.stringify([...readBooks, item.uri])
-                  );
-                }
-              });
-            }}
+            onPress={() => setFilterModalVisible(true)}
+            style={[
+              styles.filterButtonBox,
+              isDark && styles.darkFilterButtonBox,
+              filter !== "all" && { backgroundColor: "#3154e1" }
+            ]}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.bookTitle, isDark && styles.darkText]}>
-              {item.title}
-            </Text>
-            <Text style={[styles.progressText, isDark && styles.darkText]}>
-              Прогрес: {bookProgress[item.uri]?.toFixed(2) || 0}%
-            </Text>
-            <TouchableOpacity
-              onPress={() => toggleFavorite(item.uri)}
-              style={{ marginTop: 8 }}
-            >
-              <Text
-                style={{
-                  fontSize: 16,
-                  fontWeight: "600",
-                  color: item.favorite ? "#e63946" : "#555",
-                }}
-              >
-                {item.favorite ? "❤️ Улюблена" : "🤍 Додати в улюблені"}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.updateButton}
-              onPress={() => updateProgress(item.uri)}
-            >
-              <Text style={styles.updateButtonText}>🔁 Оновити прогрес</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.updateButton, { backgroundColor: "#dc3545", marginTop: 6 }]}
-              onPress={() => deleteBook(item.uri)}
-            >
-              <Text style={styles.updateButtonText}>🗑️ Видалити книгу</Text>
-            </TouchableOpacity>
+            <Text style={styles.filterButtonText}>🔍 Фільтр</Text>
           </TouchableOpacity>
-        )}
-      />
 
-      <TouchableOpacity
-        style={[styles.addButton, isDark && styles.darkAddButton]}
-        onPress={pickDocument}
-      >
-        <Text style={styles.addButtonText}>+ Додати книгу</Text>
-      </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setSortModalVisible(true)}
+            style={[
+              styles.filterButtonBox,
+              isDark && styles.darkFilterButtonBox,
+              sort !== "none" && { backgroundColor: "#3154e1" }
+            ]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.filterButtonText}>⬇️ Сортування</Text>
+          </TouchableOpacity>
 
-      <Modal visible={filterModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
-            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Обрати фільтр</Text>
-            {["all", "txt", "pdf"].map((type) => (
-              <TouchableOpacity
-                key={type}
-                onPress={() => {
-                  setFilter(type as "all" | "txt" | "pdf");
-                  setFilterModalVisible(false);
-                }}
-                style={{ marginVertical: 8 }}
-              >
+          <TouchableOpacity
+            onPress={() =>
+              setFilter(prev => (prev === "favorites" ? "all" : "favorites"))
+            }
+            style={[
+              styles.filterButtonBox,
+              isDark && styles.darkFilterButtonBox,
+              filter === "favorites" && { backgroundColor: "#3154e1" }
+            ]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.filterButtonText}>❤️ Улюблені</Text>
+          </TouchableOpacity>
+        </View>
+
+        <FlatList
+          data={filteredBooks}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={{ paddingBottom: 20 }}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={[styles.card, isDark && styles.darkCard]}
+              onPress={() => {
+                const route = item.type === "pdf" ? "/reader/pdf" : "/reader";
+                router.push(`${route}?bookUri=${encodeURIComponent(item.uri)}`);
+              }}
+            >
+              <Text style={[styles.bookTitle, isDark && styles.darkText]}>
+                {item.title}
+              </Text>
+              <Text style={[styles.progressText, isDark && styles.darkText]}>
+                Прогрес: {bookProgress[item.uri]?.toFixed(2) || 0}%
+              </Text>
+
+              <TouchableOpacity onPress={() => toggleFavorite(item.uri)} style={{ marginTop: 8 }}>
                 <Text
                   style={{
                     fontSize: 16,
-                    color: filter === type ? "#007bff" : isDark ? "#eee" : "#000",
+                    fontWeight: "600",
+                    color: item.favorite ? "#e63946" : "#555",
                   }}
                 >
-                  {type === "all" ? "Усі книги" : `Тільки ${type.toUpperCase()}`}
+                  {item.favorite ? "❤️ Улюблена" : "🤍 Додати в улюблені"}
                 </Text>
               </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={{ marginTop: 16 }}>
-              <Text style={{ color: "#888" }}>Закрити</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
-      <Modal visible={sortModalVisible} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
-            <Text style={[styles.modalTitle, isDark && styles.darkText]}>Сортувати книги</Text>
-            {["none", "progress"].map((option) => (
               <TouchableOpacity
-                key={option}
-                onPress={() => {
-                  setSort(option as "none" | "progress");
-                  setSortModalVisible(false);
-                }}
-                style={{ marginVertical: 8 }}
+                style={styles.updateButton}
+                onPress={() => updateProgress(item.uri)}
               >
-                <Text
-                  style={{
-                    fontSize: 16,
-                    color: sort === option ? "#007bff" : isDark ? "#eee" : "#000",
-                  }}
-                >
-                  {option === "none" ? "Без сортування" : "За прогресом"}
-                </Text>
+                <Text style={styles.updateButtonText}>🔁 Оновити прогрес</Text>
               </TouchableOpacity>
-            ))}
-            <TouchableOpacity onPress={() => setSortModalVisible(false)} style={{ marginTop: 16 }}>
-              <Text style={{ color: "#888" }}>Закрити</Text>
+
+              <TouchableOpacity
+                style={[styles.updateButton, { backgroundColor: "#dc3545", marginTop: 6 }]}
+                onPress={() => deleteBook(item.uri)}
+              >
+                <Text style={styles.updateButtonText}>🗑️ Видалити книгу</Text>
+              </TouchableOpacity>
             </TouchableOpacity>
+          )}
+        />
+
+        <TouchableOpacity
+          style={[styles.addButton, isDark && styles.darkAddButton]}
+          onPress={pickDocument}
+        >
+          <Text style={styles.addButtonText}>+ Додати книгу</Text>
+        </TouchableOpacity>
+
+        <Modal visible={filterModalVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>Обрати фільтр</Text>
+              {["all", "txt", "pdf"].map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => {
+                    setFilter(type as "all" | "txt" | "pdf");
+                    setFilterModalVisible(false);
+                  }}
+                  style={{ marginVertical: 8 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      color: filter === type ? "#007bff" : isDark ? "#eee" : "#000",
+                    }}
+                  >
+                    {type === "all" ? "Усі книги" : `Тільки ${type.toUpperCase()}`}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)} style={{ marginTop: 16 }}>
+                <Text style={{ color: "#888" }}>Закрити</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+        </Modal>
+
+        <Modal visible={sortModalVisible} animationType="slide" transparent>
+          <View style={styles.modalOverlay}>
+            <View style={[styles.modalContent, isDark && { backgroundColor: "#222" }]}>
+              <Text style={[styles.modalTitle, isDark && styles.darkText]}>Сортувати книги</Text>
+              {["none", "progress"].map((option) => (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => {
+                    setSort(option as "none" | "progress");
+                    setSortModalVisible(false);
+                  }}
+                  style={{ marginVertical: 8 }}
+                >
+                  <Text
+                    style={{
+                      fontSize: 16,
+                      color: sort === option ? "#007bff" : isDark ? "#eee" : "#000",
+                    }}
+                  >
+                    {option === "none" ? "Без сортування" : "За прогресом"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity onPress={() => setSortModalVisible(false)} style={{ marginTop: 16 }}>
+                <Text style={{ color: "#888" }}>Закрити</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#f0f0f0" },
-  darkContainer: { backgroundColor: "#121212" },
+  container: { flex: 1, padding: 20, backgroundColor: "rgba(240,240,240,0.5)" },
+  darkContainer: { backgroundColor: "rgba(18,18,18,0.5)" },
 
   title: {
     fontSize: 24,
@@ -333,12 +331,10 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     color: "#000",
   },
-  darkText: {
-    color: "#eee",
-  },
+  darkText: { color: "#eee" },
 
   card: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,1)",
     padding: 16,
     borderRadius: 16,
     marginBottom: 16,
@@ -347,20 +343,10 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     elevation: 4,
   },
-  darkCard: {
-    backgroundColor: "#1e1e1e",
-  },
+  darkCard: { backgroundColor: "rgba(30,30,30,1)" },
 
-  bookTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    marginBottom: 6,
-    color: "#000",
-  },
-  progressText: {
-    fontSize: 14,
-    color: "#444",
-  },
+  bookTitle: { fontSize: 18, fontWeight: "600", marginBottom: 6, color: "#000" },
+  progressText: { fontSize: 14, color: "#444" },
 
   updateButton: {
     marginTop: 10,
@@ -382,14 +368,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: "center",
   },
-  darkAddButton: {
-    backgroundColor: "#333",
-  },
-  addButtonText: {
-    color: "#fff",
-    fontSize: 16,
-    fontWeight: "600",
-  },
+  darkAddButton: { backgroundColor: "#333" },
+  addButtonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
 
   filterButtonBox: {
     backgroundColor: "#007bff",
@@ -402,14 +382,8 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  darkFilterButtonBox: {
-    backgroundColor: "#444",
-  },
-  filterButtonText: {
-    color: "#fff",
-    fontWeight: "600",
-    fontSize: 14,
-  },
+  darkFilterButtonBox: { backgroundColor: "#444" },
+  filterButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
 
   modalOverlay: {
     flex: 1,
@@ -418,15 +392,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: "#fff",
+    backgroundColor: "rgba(255,255,255,0.9)",
     padding: 20,
     borderRadius: 16,
     width: "80%",
     alignItems: "center",
   },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginBottom: 12,
-  },
+  modalTitle: { fontSize: 18, fontWeight: "bold", marginBottom: 12 },
 });

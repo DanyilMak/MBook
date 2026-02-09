@@ -4,14 +4,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Platform,
+  ImageBackground,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import { ThemeContext } from "../ThemeContext";
 
 export default function StatsScreen() {
-  const { theme } = useContext(ThemeContext);
+  const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
 
   const [appTime, setAppTime] = useState(0);
@@ -76,35 +76,41 @@ export default function StatsScreen() {
   );
 
   return (
-    <ScrollView
-      style={[styles.container, isDark && styles.darkContainer]}
-      contentContainerStyle={styles.scrollContent}
+    <ImageBackground
+      source={backgroundImage ? { uri: backgroundImage } : undefined}
+      style={{ flex: 1 }}
+      resizeMode="cover"
     >
-      <Text style={[styles.header, isDark && styles.darkText]}>
-        📊 Статистика
-      </Text>
+      <ScrollView
+        style={[styles.container, isDark && styles.darkContainer]}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <Text style={[styles.header, isDark && styles.darkText]}>
+          📊 Статистика
+        </Text>
 
-      <Card title="🕒 Час у додатку" value={formatTime(appTime)} />
-      <Card title="📖 Час читання" value={formatTime(readingTime)} />
-      <Card
-        title="📆 Остання сесія"
-        value={lastSession || "Немає даних"}
-      />
-      <Card
-        title="📚 Прочитаних книг"
-        value={`${readBooksCount} книг${readBooksCount === 1 ? "а" : "и"}`}
-      />
-    </ScrollView>
+        <Card title="🕒 Час у додатку" value={formatTime(appTime)} />
+        <Card title="📖 Час читання" value={formatTime(readingTime)} />
+        <Card
+          title="📆 Остання сесія"
+          value={lastSession || "Немає даних"}
+        />
+        <Card
+          title="📚 Прочитаних книг"
+          value={`${readBooksCount} книг${readBooksCount === 1 ? "а" : "и"}`}
+        />
+      </ScrollView>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#f2f2f2",
+    backgroundColor: "rgba(242,242,242,0.5)",
   },
   darkContainer: {
-    backgroundColor: "#121212",
+    backgroundColor: "rgba(18,18,18,0.5)",
   },
   scrollContent: {
     padding: 20,
@@ -117,18 +123,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   card: {
-    backgroundColor: "#ffffff",
+    backgroundColor: "rgba(255,255,255,1)",
     borderRadius: 16,
     padding: 20,
     marginBottom: 16,
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    elevation: 6,
   },
   darkCard: {
-    backgroundColor: "#1e1e1e",
+    backgroundColor: "rgba(30,30,30,1)",
     shadowColor: "#000",
   },
   cardTitle: {
