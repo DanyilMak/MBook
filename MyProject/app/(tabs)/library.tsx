@@ -19,11 +19,12 @@ interface Book {
   uri: string;
   type: "txt" | "pdf";
   progress?: number;
+  favorite?: boolean;
 }
 
 export default function LibraryScreen() {
   const [books, setBooks] = useState<Book[]>([]);
-  const [filter, setFilter] = useState<"all" | "txt" | "pdf">("all");
+  const [filter, setFilter] = useState<"all" | "txt" | "pdf" | "favorites">("all");
   const [sort, setSort] = useState<"none" | "progress">("none");
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
@@ -49,6 +50,7 @@ export default function LibraryScreen() {
           ...book,
           type: fixedType,
           progress: progressData[book.uri] || 0,
+          favorite: book.favorite || false,
         };
       });
 
@@ -80,6 +82,7 @@ export default function LibraryScreen() {
             uri,
             type,
             progress: 0,
+            favorite: false,
           },
         ];
         AsyncStorage.setItem("books", JSON.stringify(newBooks));
@@ -89,6 +92,18 @@ export default function LibraryScreen() {
       Alert.alert("Помилка", "Не вдалося вибрати файл");
     }
   };
+
+  const toggleFavorite = async (uri: string) => {
+    setBooks(prev => {
+      const updated = prev.map(book =>
+        book.uri === uri ? { ...book, favorite: !book.favorite } : book
+      );
+
+      AsyncStorage.setItem("books", JSON.stringify(updated));
+      return updated;
+    });
+  };
+
 
   const updateProgress = async (uri: string) => {
     const savedProgress = await AsyncStorage.getItem("progress");
@@ -122,8 +137,12 @@ export default function LibraryScreen() {
     ]);
   };
 
-  let filteredBooks =
-    filter === "all" ? books : books.filter((book) => book.type === filter);
+  let filteredBooks = books;
+  if (filter === "txt" || filter === "pdf") {
+    filteredBooks = books.filter((book) => book.type === filter);
+  } else if (filter === "favorites") {
+    filteredBooks = books.filter((book) => book.favorite);
+  }
 
   if (sort === "progress") {
     filteredBooks = [...filteredBooks].sort(
@@ -140,7 +159,9 @@ export default function LibraryScreen() {
       <View style={{ flexDirection: "row", marginBottom: 10, gap: 5 }}>
         <TouchableOpacity
           onPress={() => setFilterModalVisible(true)}
-          style={[styles.filterButtonBox, isDark && styles.darkFilterButtonBox]}
+          style={[styles.filterButtonBox,
+          isDark && styles.darkFilterButtonBox,
+          filter !== "all" && { backgroundColor: "#3154e1" }]}
           activeOpacity={0.8}
         >
           <Text style={styles.filterButtonText}>🔍 Фільтр</Text>
@@ -148,10 +169,28 @@ export default function LibraryScreen() {
 
         <TouchableOpacity
           onPress={() => setSortModalVisible(true)}
-          style={[styles.filterButtonBox, isDark && styles.darkFilterButtonBox]}
+          style={[styles.filterButtonBox,
+          isDark && styles.darkFilterButtonBox,
+          sort !== "none" && { backgroundColor: "#3154e1" }]}
           activeOpacity={0.8}
         >
           <Text style={styles.filterButtonText}>⬇️ Сортування</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          onPress={() =>
+            setFilter(prev => (prev === "favorites" ? "all" : "favorites"))
+          }
+          style={[
+            styles.filterButtonBox,
+            isDark && styles.darkFilterButtonBox,
+            filter === "favorites" && { backgroundColor: "#3154e1" }
+          ]}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.filterButtonText}>
+            ❤️ Улюблені
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -183,6 +222,21 @@ export default function LibraryScreen() {
             <Text style={[styles.progressText, isDark && styles.darkText]}>
               Прогрес: {bookProgress[item.uri]?.toFixed(2) || 0}%
             </Text>
+            <TouchableOpacity
+              onPress={() => toggleFavorite(item.uri)}
+              style={{ marginTop: 8 }}
+            >
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontWeight: "600",
+                  color: item.favorite ? "#e63946" : "#555",
+                }}
+              >
+                {item.favorite ? "❤️ Улюблена" : "🤍 Додати в улюблені"}
+              </Text>
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.updateButton}
               onPress={() => updateProgress(item.uri)}
@@ -340,7 +394,7 @@ const styles = StyleSheet.create({
   filterButtonBox: {
     backgroundColor: "#007bff",
     paddingVertical: 8,
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     borderRadius: 16,
     shadowColor: "#000",
     shadowOpacity: 0.2,
