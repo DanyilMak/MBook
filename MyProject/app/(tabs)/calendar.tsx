@@ -97,7 +97,6 @@ export default function CalendarScreen() {
         style={[styles.container, isDark && styles.darkContainer]}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Перемикання місяців */}
         <View style={styles.monthSwitcher}>
           <TouchableOpacity onPress={() => setCurrentMonth(addMonths(currentMonth, -1))}>
             <Text style={[styles.switchText, isDark && styles.darkText]}>◀</Text>

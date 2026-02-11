@@ -9,6 +9,8 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import { ThemeContext } from "../ThemeContext";
+import { format } from "date-fns";
+import { uk } from "date-fns/locale";
 
 export default function StatsScreen() {
   const { theme, backgroundImage } = useContext(ThemeContext);
@@ -18,6 +20,7 @@ export default function StatsScreen() {
   const [readingTime, setReadingTime] = useState(0);
   const [lastSession, setLastSession] = useState<string | null>(null);
   const [readBooksCount, setReadBooksCount] = useState(0);
+  const [averageReadingTime, setAverageReadingTime] = useState(0);
 
   useEffect(() => {
     const timer = setInterval(() => setAppTime((prev) => prev + 1), 1000);
@@ -44,6 +47,16 @@ export default function StatsScreen() {
           const books = JSON.parse(savedBooks);
           setReadBooksCount(books.length);
         }
+
+        const allKeys = await AsyncStorage.getAllKeys();
+        const timeKeys = allKeys.filter((key) => key.startsWith("readingTime_"));
+        const stores = await AsyncStorage.multiGet(timeKeys);
+        let total = 0;
+        stores.forEach(([_, value]) => {
+          if (value) total += parseInt(value, 10);
+        });
+        const avg = timeKeys.length > 0 ? total / timeKeys.length : 0;
+        setAverageReadingTime(avg);
       };
 
       loadStats();
@@ -65,7 +78,9 @@ export default function StatsScreen() {
     const hrs = Math.floor(seconds / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
-    return `${hrs} год ${mins} хв ${secs} сек`;
+    if (hrs > 0) return `${hrs} год ${mins} хв`;
+    if (mins > 0) return `${mins} хв ${secs} сек`;
+    return `${secs} сек`;
   };
 
   const Card = ({ title, value }: { title: string; value: string }) => (
@@ -93,11 +108,19 @@ export default function StatsScreen() {
         <Card title="📖 Час читання" value={formatTime(readingTime)} />
         <Card
           title="📆 Остання сесія"
-          value={lastSession || "Немає даних"}
+          value={
+            lastSession && !isNaN(new Date(lastSession).getTime())
+              ? format(new Date(lastSession), "dd.MM.yyyy HH:mm", { locale: uk })
+              : "Немає даних"
+          }
         />
         <Card
           title="📚 Прочитаних книг"
           value={`${readBooksCount} книг${readBooksCount === 1 ? "а" : "и"}`}
+        />
+        <Card
+          title="📊 Середній час читання на день"
+          value={formatTime(Math.floor(averageReadingTime))}
         />
       </ScrollView>
     </ImageBackground>
@@ -134,7 +157,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   darkCard: {
-    backgroundColor: "rgba(30,30,30,1)",
+    backgroundColor: "rgba(40,40,40,1)",
     shadowColor: "#000",
   },
   cardTitle: {

@@ -108,7 +108,7 @@ export default function SettingsScreen() {
                   source={{ uri }}
                   style={[
                     styles.imageOption,
-                    backgroundImage === uri && { borderColor: "#007bff", borderWidth: 3 }, // 🔹 індикатор вибраного
+                    backgroundImage === uri && { borderColor: "#007bff", borderWidth: 3 },
                   ]}
                 />
               </TouchableOpacity>
@@ -118,7 +118,7 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={[
               styles.customButton,
-              { backgroundColor: isDark ? "#444" : "#007bff" }, // 🔹 адаптація кольору
+              { backgroundColor: isDark ? "#444" : "#007bff" },
             ]}
             onPress={pickCustomImage}
           >
