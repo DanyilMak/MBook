@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,6 +11,7 @@ import {
   ImageBackground,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { ThemeContext } from "../ThemeContext";
 
 const backgroundOptions = [
@@ -26,6 +27,24 @@ export default function SettingsScreen() {
 
   const isDark = theme === "dark";
   const hasBackground = !!backgroundImage;
+
+  useEffect(() => {
+    const loadBackground = async () => {
+      const savedBackground = await AsyncStorage.getItem("backgroundImage");
+      if (savedBackground) {
+        setBackgroundImage(savedBackground);
+      }
+    };
+    loadBackground();
+  }, []);
+
+  useEffect(() => {
+    if (backgroundImage) {
+      AsyncStorage.setItem("backgroundImage", backgroundImage);
+    } else {
+      AsyncStorage.removeItem("backgroundImage");
+    }
+  }, [backgroundImage]);
 
   const handleAboutPress = () => {
     Alert.alert(
@@ -44,8 +63,11 @@ export default function SettingsScreen() {
 
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        quality: 1,
+        quality: 0.7,
+        allowsEditing: true,
+        aspect: [9, 16],
       });
+
 
       if (!result.canceled) {
         setBackgroundImage(result.assets[0].uri);
@@ -82,12 +104,24 @@ export default function SettingsScreen() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             {backgroundOptions.map((uri, i) => (
               <TouchableOpacity key={i} onPress={() => setBackgroundImage(uri)}>
-                <Image source={{ uri }} style={styles.imageOption} />
+                <Image
+                  source={{ uri }}
+                  style={[
+                    styles.imageOption,
+                    backgroundImage === uri && { borderColor: "#007bff", borderWidth: 3 }, // 🔹 індикатор вибраного
+                  ]}
+                />
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          <TouchableOpacity style={styles.customButton} onPress={pickCustomImage}>
+          <TouchableOpacity
+            style={[
+              styles.customButton,
+              { backgroundColor: isDark ? "#444" : "#007bff" }, // 🔹 адаптація кольору
+            ]}
+            onPress={pickCustomImage}
+          >
             <Text style={styles.customButtonText}>📂 Обрати своє зображення</Text>
           </TouchableOpacity>
 
@@ -169,7 +203,6 @@ const styles = StyleSheet.create({
   },
   customButton: {
     marginTop: 12,
-    backgroundColor: "#007bff",
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: "center",
