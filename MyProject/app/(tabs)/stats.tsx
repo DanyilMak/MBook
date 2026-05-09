@@ -18,75 +18,80 @@ export default function StatsScreen() {
   const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
 
+  const [isLoaded, setIsLoaded] = useState(false);
+
   const [appTime, setAppTime] = useState(0);
   const [readingTime, setReadingTime] = useState(0);
   const [lastSession, setLastSession] = useState<string | null>(null);
   const [readBooksCount, setReadBooksCount] = useState(0);
   const [averageReadingTime, setAverageReadingTime] = useState(0);
   
-  // ВИПРАВЛЕНО: додано [] до масиву datasets
   const [chartData, setChartData] = useState<{labels: string[], datasets: {data: number[]}[] }>({
     labels: [],
     datasets: [{ data: [] }]
   });
-
-  useEffect(() => {
-    const timer = setInterval(() => setAppTime((prev) => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useFocusEffect(
     React.useCallback(() => {
       let isActive = true;
 
       const loadStats = async () => {
-        const savedAppTime = await AsyncStorage.getItem("appTime");
-        if (savedAppTime && isActive) setAppTime(parseInt(savedAppTime, 10));
+        try {
+          const savedAppTime = await AsyncStorage.getItem("appTime");
+          if (savedAppTime && isActive) setAppTime(parseInt(savedAppTime, 10));
 
-        const savedReadingTime = await AsyncStorage.getItem("readingTime");
-        if (savedReadingTime && isActive)
-          setReadingTime(parseInt(savedReadingTime, 10));
+          const savedReadingTime = await AsyncStorage.getItem("readingTime");
+          if (savedReadingTime && isActive) setReadingTime(parseInt(savedReadingTime, 10));
 
-        const savedLastSession = await AsyncStorage.getItem("lastSession");
-        if (savedLastSession && isActive) setLastSession(savedLastSession);
+          const savedLastSession = await AsyncStorage.getItem("lastSession");
+          if (savedLastSession && isActive) setLastSession(savedLastSession);
 
-        const savedBooks = await AsyncStorage.getItem("readBooks");
-        if (savedBooks && isActive) {
-          const books = JSON.parse(savedBooks);
-          setReadBooksCount(books.length);
-        }
+          const savedProgress = await AsyncStorage.getItem("progress");
+          if (savedProgress && isActive) {
+            const progressData = JSON.parse(savedProgress);
+            let completedBooks = 0;
+            
+            for (const uri in progressData) {
+              if (progressData[uri] >= 98) {
+                completedBooks++;
+              }
+            }
+            setReadBooksCount(completedBooks);
+          }
 
-        const allKeys = await AsyncStorage.getAllKeys();
-        const timeKeys = allKeys.filter((key) => key.startsWith("readingTime_"));
-        const stores = await AsyncStorage.multiGet(timeKeys);
-        
-        let total = 0;
-        stores.forEach(([_, value]) => {
-          if (value) total += parseInt(value, 10);
-        });
-        const avg = timeKeys.length > 0 ? total / timeKeys.length : 0;
-        if (isActive) setAverageReadingTime(avg);
-
-        // --- ЛОГІКА ДЛЯ ГРАФІКА (Останні 7 днів) ---
-        const labels: string[] = [];
-        const dataValues: number[] = [];
-        for (let i = 6; i >= 0; i--) {
-          const date = subDays(new Date(), i);
-          const dateKey = `readingTime_${format(date, "yyyy-MM-dd")}`;
-          const label = format(date, "eeeee", { locale: uk }); // Короткий день (Пн, Вв...)
+          const allKeys = await AsyncStorage.getAllKeys();
+          const timeKeys = allKeys.filter((key) => key.startsWith("readingTime_"));
+          const stores = await AsyncStorage.multiGet(timeKeys);
           
-          labels.push(label);
-          
-          const dayValue = await AsyncStorage.getItem(dateKey);
-          // Переводимо секунди у хвилини для кращого вигляду на графіку
-          dataValues.push(dayValue ? Math.round(parseInt(dayValue, 10) / 60) : 0);
-        }
-        
-        if (isActive) {
-          setChartData({
-            labels,
-            datasets: [{ data: dataValues }]
+          let total = 0;
+          stores.forEach(([_, value]) => {
+            if (value) total += parseInt(value, 10);
           });
+          const avg = timeKeys.length > 0 ? total / timeKeys.length : 0;
+          if (isActive) setAverageReadingTime(avg);
+
+          const labels: string[] = [];
+          const dataValues: number[] = [];
+          for (let i = 6; i >= 0; i--) {
+            const date = subDays(new Date(), i);
+            const dateKey = `readingTime_${format(date, "yyyy-MM-dd")}`;
+            const label = format(date, "eeeee", { locale: uk });
+            
+            labels.push(label);
+            
+            const dayValue = await AsyncStorage.getItem(dateKey);
+            dataValues.push(dayValue ? Math.round(parseInt(dayValue, 10) / 60) : 0);
+          }
+          
+          if (isActive) {
+            setChartData({
+              labels,
+              datasets: [{ data: dataValues }]
+            });
+            setIsLoaded(true);
+          }
+        } catch (error) {
+          console.error("Помилка завантаження статистики:", error);
         }
       };
 
@@ -98,12 +103,18 @@ export default function StatsScreen() {
   );
 
   useEffect(() => {
-    AsyncStorage.setItem("appTime", appTime.toString());
-  }, [appTime]);
+    if (!isLoaded) return; 
 
-  useEffect(() => {
-    AsyncStorage.setItem("readingTime", readingTime.toString());
-  }, [readingTime]);
+    const timer = setInterval(() => {
+      setAppTime((prev) => {
+        const newValue = prev + 1;
+        AsyncStorage.setItem("appTime", newValue.toString());
+        return newValue;
+      });
+    }, 1000);
+    
+    return () => clearInterval(timer);
+  }, [isLoaded]);
 
   const formatTime = (seconds: number) => {
     const hrs = Math.floor(seconds / 3600);
@@ -113,6 +124,16 @@ export default function StatsScreen() {
     if (mins > 0) return `${mins} хв ${secs} сек`;
     return `${secs} сек`;
   };
+
+  let formattedLastSession = "Немає даних";
+  if (lastSession) {
+    const parsedDate = new Date(lastSession);
+    if (!isNaN(parsedDate.getTime())) {
+      formattedLastSession = format(parsedDate, "dd.MM.yyyy HH:mm", { locale: uk });
+    } else {
+      formattedLastSession = lastSession;
+    }
+  }
 
   const Card = ({ title, value, children }: { title: string; value?: string, children?: React.ReactNode }) => (
     <View style={[styles.card, isDark && styles.darkCard]}>
@@ -148,7 +169,6 @@ export default function StatsScreen() {
           📊 Статистика
         </Text>
 
-        {/* ПЛАШКА З ГРАФІКОМ */}
         <Card title="📈 Активність за тиждень (хв)">
            <BarChart
             style={{ marginLeft: -16, marginTop: 10, borderRadius: 16 }}
@@ -165,14 +185,7 @@ export default function StatsScreen() {
 
         <Card title="🕒 Час у додатку" value={formatTime(appTime)} />
         <Card title="📖 Час читання" value={formatTime(readingTime)} />
-        <Card
-          title="📆 Остання сесія"
-          value={
-            lastSession && !isNaN(new Date(lastSession).getTime())
-              ? format(new Date(lastSession), "dd.MM.yyyy HH:mm", { locale: uk })
-              : "Немає даних"
-          }
-        />
+        <Card title="📆 Остання сесія" value={formattedLastSession} />
         <Card
           title="📚 Прочитаних книг"
           value={`${readBooksCount} книг${readBooksCount === 1 ? "а" : "и"}`}

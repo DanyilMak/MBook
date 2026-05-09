@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useContext, useCallback } from "react";
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   ImageBackground,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "expo-router";
 import {
   format,
   startOfMonth,
@@ -20,20 +21,23 @@ import {
 import { uk } from "date-fns/locale";
 import { ThemeContext } from "../ThemeContext";
 
+type DailyActivity = { time: number; books: number; note: string };
+
 export default function CalendarScreen() {
   const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
 
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  
   const [readingTime, setReadingTime] = useState(0);
   const [readBooksCount, setReadBooksCount] = useState(0);
-  const [notes, setNotes] = useState<{ [key: string]: string }>({});
-  const [modalVisible, setModalVisible] = useState(false);
   const [noteInput, setNoteInput] = useState("");
+  const [modalVisible, setModalVisible] = useState(false);
+
+  const [activityData, setActivityData] = useState<Record<string, DailyActivity>>({});
 
   const today = new Date();
-
   const monthName =
     format(currentMonth, "LLLL yyyy", { locale: uk }).charAt(0).toUpperCase() +
     format(currentMonth, "LLLL yyyy", { locale: uk }).slice(1);
@@ -43,31 +47,91 @@ export default function CalendarScreen() {
     end: endOfMonth(currentMonth),
   });
 
-  useEffect(() => {
-    const loadNotes = async () => {
-      const allKeys = await AsyncStorage.getAllKeys();
-      const noteKeys = allKeys.filter((key) => key.startsWith("note_"));
-      const stores = await AsyncStorage.multiGet(noteKeys);
-      const loadedNotes: { [key: string]: string } = {};
-      stores.forEach(([key, value]) => {
-        if (value) loadedNotes[key.replace("note_", "")] = value;
-      });
-      setNotes(loadedNotes);
-    };
-    loadNotes();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let isActive = true;
 
-  const openModal = async (date: Date) => {
+      const syncCompletedBooks = async () => {
+        try {
+          const todayDate = format(new Date(), "yyyy-MM-dd");
+
+          const savedProgress = await AsyncStorage.getItem("progress");
+          const progressData = savedProgress ? JSON.parse(savedProgress) : {};
+
+          const trackedSaved = await AsyncStorage.getItem("completed_books_tracked");
+          const trackedBooks: string[] = trackedSaved ? JSON.parse(trackedSaved) : [];
+
+          const newlyCompleted: string[] = [];
+
+          for (const uri in progressData) {
+            if (progressData[uri] >= 98 && !trackedBooks.includes(uri)) {
+              newlyCompleted.push(uri);
+            }
+          }
+
+          if (newlyCompleted.length > 0) {
+            const todaySavedBooks = await AsyncStorage.getItem(`readBooks_${todayDate}`);
+            const todayBooks: string[] = todaySavedBooks ? JSON.parse(todaySavedBooks) : [];
+            
+            const updatedTodayBooks = [...todayBooks, ...newlyCompleted];
+            await AsyncStorage.setItem(`readBooks_${todayDate}`, JSON.stringify(updatedTodayBooks));
+
+            const updatedTracked = [...trackedBooks, ...newlyCompleted];
+            await AsyncStorage.setItem("completed_books_tracked", JSON.stringify(updatedTracked));
+          }
+        } catch (error) {
+          console.error("Помилка синхронізації прочитаних книг:", error);
+        }
+      };
+
+      const loadCalendarData = async () => {
+        await syncCompletedBooks();
+
+        const allKeys = await AsyncStorage.getAllKeys();
+        const relevantKeys = allKeys.filter(
+          (key) => key.startsWith("note_") || key.startsWith("readingTime_") || key.startsWith("readBooks_")
+        );
+        
+        const stores = await AsyncStorage.multiGet(relevantKeys);
+        const data: Record<string, DailyActivity> = {};
+
+        stores.forEach(([key, value]) => {
+          if (!value) return;
+
+          let dateStr = "";
+          if (key.startsWith("note_")) dateStr = key.replace("note_", "");
+          else if (key.startsWith("readingTime_")) dateStr = key.replace("readingTime_", "");
+          else if (key.startsWith("readBooks_")) dateStr = key.replace("readBooks_", "");
+
+          if (!data[dateStr]) data[dateStr] = { time: 0, books: 0, note: "" };
+
+          if (key.startsWith("note_")) {
+            data[dateStr].note = value;
+          } else if (key.startsWith("readingTime_")) {
+            data[dateStr].time = parseInt(value, 10);
+          } else if (key.startsWith("readBooks_")) {
+            data[dateStr].books = JSON.parse(value).length;
+          }
+        });
+
+        if (isActive) setActivityData(data);
+      };
+
+      loadCalendarData();
+
+      return () => { isActive = false; };
+    }, [])
+  );
+
+  const openModal = (date: Date) => {
     const formattedDate = format(date, "yyyy-MM-dd");
     setSelectedDate(formattedDate);
 
-    const storedTime = await AsyncStorage.getItem(`readingTime_${formattedDate}`);
-    const storedBooks = await AsyncStorage.getItem(`readBooks_${formattedDate}`);
-    const storedNote = await AsyncStorage.getItem(`note_${formattedDate}`);
-
-    setReadingTime(storedTime ? parseInt(storedTime, 10) : 0);
-    setReadBooksCount(storedBooks ? JSON.parse(storedBooks).length : 0);
-    setNoteInput(storedNote || "");
+    const dayData = activityData[formattedDate] || { time: 0, books: 0, note: "" };
+    
+    setReadingTime(dayData.time);
+    setReadBooksCount(dayData.books);
+    setNoteInput(dayData.note);
 
     setModalVisible(true);
   };
@@ -75,7 +139,14 @@ export default function CalendarScreen() {
   const saveNote = async () => {
     if (selectedDate) {
       await AsyncStorage.setItem(`note_${selectedDate}`, noteInput);
-      setNotes((prev) => ({ ...prev, [selectedDate]: noteInput }));
+      
+      setActivityData((prev) => ({
+        ...prev,
+        [selectedDate]: {
+          ...(prev[selectedDate] || { time: 0, books: 0 }),
+          note: noteInput,
+        },
+      }));
     }
     setModalVisible(false);
   };
@@ -111,8 +182,9 @@ export default function CalendarScreen() {
           {daysInMonth.map((day) => {
             const formattedDay = format(day, "yyyy-MM-dd");
             const isToday = formattedDay === format(today, "yyyy-MM-dd");
-            const hasActivity =
-              notes[formattedDay] || readingTime > 0 || readBooksCount > 0;
+            
+            const dayData = activityData[formattedDay];
+            const hasActivity = dayData && (dayData.note || dayData.time > 0 || dayData.books > 0);
 
             return (
               <TouchableOpacity
@@ -125,7 +197,7 @@ export default function CalendarScreen() {
                   hasActivity && { borderColor: "#28a745", borderWidth: 2 },
                 ]}
               >
-                <Text style={[styles.dayText, isDark && styles.darkText]}>
+                <Text style={[styles.dayText, isDark && styles.darkText, isToday && {color: "white"}]}>
                   {format(day, "d")}
                 </Text>
               </TouchableOpacity>
@@ -285,6 +357,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#007bff",
     borderRadius: 8,
     alignItems: "center",
+    width: "100%"
   },
   closeButtonText: {
     color: "#fff",

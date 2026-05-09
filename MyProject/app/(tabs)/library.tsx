@@ -30,6 +30,7 @@ export default function LibraryScreen() {
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [sortModalVisible, setSortModalVisible] = useState(false);
   const [bookProgress, setBookProgress] = useState<{ [key: string]: number }>({});
+  
   const { theme, backgroundImage } = useContext(ThemeContext);
   const isDark = theme === "dark";
   const router = useRouter();
@@ -75,10 +76,16 @@ export default function LibraryScreen() {
       const type: "pdf" | "txt" = name.toLowerCase().endsWith(".pdf") ? "pdf" : "txt";
 
       setBooks((prevBooks) => {
+        const isDuplicate = prevBooks.some(book => book.uri === uri);
+        if (isDuplicate) {
+          Alert.alert("Увага", "Ця книга вже є в бібліотеці!");
+          return prevBooks;
+        }
+
         const newBooks = [
           ...prevBooks,
           {
-            id: String(prevBooks.length + 1),
+            id: Date.now().toString(),
             title: name,
             uri,
             type,
@@ -104,7 +111,6 @@ export default function LibraryScreen() {
       return updated;
     });
   };
-
 
   const updateProgress = async (uri: string) => {
     const savedProgress = await AsyncStorage.getItem("progress");
@@ -204,7 +210,7 @@ export default function LibraryScreen() {
 
         <FlatList
           data={filteredBooks}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => item.uri ? item.uri.toString() : index.toString()}
           contentContainerStyle={{ paddingBottom: 20 }}
           renderItem={({ item }) => (
             <TouchableOpacity
