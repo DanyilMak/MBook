@@ -14,7 +14,16 @@ export default function Layout() {
             <View style={[styles.overlay, isDark && styles.darkOverlay]}>
               <Stack screenOptions={{ headerShown: false }}>
                 <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="reader" options={{ title: "Читання книги" }} />
+                <Stack.Screen 
+                  name="reader" 
+                  options={{ 
+                    title: "Читання книги",
+                    headerStyle: {
+                      backgroundColor: isDark ? "#121212" : "#ffffff",
+                    },
+                    headerTintColor: isDark ? "#ffffff" : "#000000",
+                  }} 
+                />
               </Stack>
             </View>
           );
@@ -48,7 +57,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(255, 255, 255, 0.95)", // прозорість поверх зображення
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
   },
   darkOverlay: {
     backgroundColor: "rgba(0, 0, 0, 0.85)",

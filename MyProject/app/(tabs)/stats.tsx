@@ -5,12 +5,14 @@ import {
   StyleSheet,
   ScrollView,
   ImageBackground,
+  Dimensions,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "expo-router";
 import { ThemeContext } from "../ThemeContext";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { uk } from "date-fns/locale";
+import { BarChart } from "react-native-chart-kit";
 
 export default function StatsScreen() {
   const { theme, backgroundImage } = useContext(ThemeContext);
@@ -21,6 +23,12 @@ export default function StatsScreen() {
   const [lastSession, setLastSession] = useState<string | null>(null);
   const [readBooksCount, setReadBooksCount] = useState(0);
   const [averageReadingTime, setAverageReadingTime] = useState(0);
+  
+  // ВИПРАВЛЕНО: додано [] до масиву datasets
+  const [chartData, setChartData] = useState<{labels: string[], datasets: {data: number[]}[] }>({
+    labels: [],
+    datasets: [{ data: [] }]
+  });
 
   useEffect(() => {
     const timer = setInterval(() => setAppTime((prev) => prev + 1), 1000);
@@ -51,12 +59,35 @@ export default function StatsScreen() {
         const allKeys = await AsyncStorage.getAllKeys();
         const timeKeys = allKeys.filter((key) => key.startsWith("readingTime_"));
         const stores = await AsyncStorage.multiGet(timeKeys);
+        
         let total = 0;
         stores.forEach(([_, value]) => {
           if (value) total += parseInt(value, 10);
         });
         const avg = timeKeys.length > 0 ? total / timeKeys.length : 0;
-        setAverageReadingTime(avg);
+        if (isActive) setAverageReadingTime(avg);
+
+        // --- ЛОГІКА ДЛЯ ГРАФІКА (Останні 7 днів) ---
+        const labels: string[] = [];
+        const dataValues: number[] = [];
+        for (let i = 6; i >= 0; i--) {
+          const date = subDays(new Date(), i);
+          const dateKey = `readingTime_${format(date, "yyyy-MM-dd")}`;
+          const label = format(date, "eeeee", { locale: uk }); // Короткий день (Пн, Вв...)
+          
+          labels.push(label);
+          
+          const dayValue = await AsyncStorage.getItem(dateKey);
+          // Переводимо секунди у хвилини для кращого вигляду на графіку
+          dataValues.push(dayValue ? Math.round(parseInt(dayValue, 10) / 60) : 0);
+        }
+        
+        if (isActive) {
+          setChartData({
+            labels,
+            datasets: [{ data: dataValues }]
+          });
+        }
       };
 
       loadStats();
@@ -83,12 +114,25 @@ export default function StatsScreen() {
     return `${secs} сек`;
   };
 
-  const Card = ({ title, value }: { title: string; value: string }) => (
+  const Card = ({ title, value, children }: { title: string; value?: string, children?: React.ReactNode }) => (
     <View style={[styles.card, isDark && styles.darkCard]}>
       <Text style={[styles.cardTitle, isDark && styles.darkText]}>{title}</Text>
-      <Text style={[styles.cardValue, isDark && styles.darkText]}>{value}</Text>
+      {value && <Text style={[styles.cardValue, isDark && styles.darkText]}>{value}</Text>}
+      {children}
     </View>
   );
+
+  const chartConfig = {
+    backgroundGradientFrom: isDark ? "#282828" : "#fff",
+    backgroundGradientTo: isDark ? "#282828" : "#fff",
+    color: (opacity = 1) => isDark ? `rgba(187, 134, 252, ${opacity})` : `rgba(0, 122, 255, ${opacity})`,
+    labelColor: (opacity = 1) => isDark ? `rgba(255, 255, 255, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+    strokeWidth: 2,
+    barPercentage: 0.6,
+    propsForLabels: {
+        fontSize: 10
+    }
+  };
 
   return (
     <ImageBackground
@@ -103,6 +147,21 @@ export default function StatsScreen() {
         <Text style={[styles.header, isDark && styles.darkText]}>
           📊 Статистика
         </Text>
+
+        {/* ПЛАШКА З ГРАФІКОМ */}
+        <Card title="📈 Активність за тиждень (хв)">
+           <BarChart
+            style={{ marginLeft: -16, marginTop: 10, borderRadius: 16 }}
+            data={chartData}
+            width={Dimensions.get("window").width - 40}
+            height={200}
+            yAxisLabel=""
+            yAxisSuffix=""
+            chartConfig={chartConfig}
+            verticalLabelRotation={0}
+            fromZero={true}
+          />
+        </Card>
 
         <Card title="🕒 Час у додатку" value={formatTime(appTime)} />
         <Card title="📖 Час читання" value={formatTime(readingTime)} />
@@ -137,6 +196,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 20,
+    paddingBottom: 40,
   },
   header: {
     fontSize: 28,
@@ -155,6 +215,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 10,
     elevation: 6,
+    overflow: 'hidden'
   },
   darkCard: {
     backgroundColor: "rgba(40,40,40,1)",
